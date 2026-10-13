@@ -1,6 +1,6 @@
 import {
   db, auth, doc, getDoc, setDoc, onSnapshot, serverTimestamp,
-  signInAnonymously, onAuthStateChanged, $, esc, fmtTime,
+  signInAnonymously, onAuthStateChanged, $, esc, fmtTime, ask,
 } from "./shared.js";
 
 const app = $("#app");
@@ -87,9 +87,9 @@ function examView() {
     save("ans_" + sess.code, answers);
     app.querySelectorAll(`.opt[data-i="${i}"]`).forEach((l) => l.classList.toggle("sel", l.contains(r) && r.checked));
   });
-  $("#send").onclick = () => {
+  $("#send").onclick = async () => {
     const blank = paper.filter((_, i) => !answers[i]).length;
-    if (confirm(blank ? `Masih ${blank} soal belum dijawab. Tetap kirim?` : "Kirim jawaban sekarang? Tidak bisa diubah.")) submit();
+    if (await ask(blank ? `Masih ${blank} soal belum dijawab. Tetap kirim?` : "Kirim jawaban sekarang? Tidak bisa diubah.", { ok: "Kirim", cancel: "Kembali" })) submit();
   };
 }
 

@@ -1,7 +1,7 @@
 import {
   db, auth, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where,
   getDocs, writeBatch, serverTimestamp, onAuthStateChanged, signInWithPopup, GoogleAuthProvider,
-  signOut, $, esc,
+  signOut, $, esc, ask, notify,
 } from "./shared.js";
 
 const app = $("#app");
@@ -83,7 +83,7 @@ function listView() {
   };
   $("#mk").onclick = async () => {
     const title = $("#title").value.trim();
-    if (!title) return alert("Isi judul ujian.");
+    if (!title) return notify("Isi judul ujian.");
     const code = Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[b % 32]).join("");
     $("#mk").disabled = true;
     const b = writeBatch(db);
@@ -129,8 +129,8 @@ function examView(code) {
     bindLogout();
     $("#back").onclick = listView;
     $("#st").onclick = () => updateDoc(doc(db, "exams", code), { status: "open", endsAt: Date.now() + exam.durationMin * 60000 });
-    $("#en").onclick = () => confirm("Semua siswa akan langsung dipaksa mengumpulkan. Lanjut?") && updateDoc(doc(db, "exams", code), { endsAt: Date.now() });
-    $("#cl").onclick = () => confirm("Setelah ditutup siswa tidak bisa mengirim lagi. Lanjut?") && updateDoc(doc(db, "exams", code), { status: "closed" });
+    $("#en").onclick = async () => (await ask("Semua siswa akan langsung dipaksa mengumpulkan. Lanjut?")) && updateDoc(doc(db, "exams", code), { endsAt: Date.now() });
+    $("#cl").onclick = async () => (await ask("Setelah ditutup siswa tidak bisa mengirim lagi. Lanjut?")) && updateDoc(doc(db, "exams", code), { status: "closed" });
     $("#oScore").onchange = (e) => (opt.score = e.target.checked);
     $("#oKey").onchange = (e) => (opt.key = e.target.checked);
     $("#rel").onclick = release;
@@ -163,7 +163,7 @@ function examView(code) {
       });
       await b.commit();
     }
-    alert(`Hasil dirilis untuk ${subs.length} siswa.`);
+    notify(`Hasil dirilis untuk ${subs.length} siswa.`);
   }
 
   async function exportXlsx() {
@@ -181,7 +181,7 @@ function examView(code) {
   }
 
   async function remove() {
-    if (!confirm("Hapus ujian beserta semua jawaban dan hasil? Tidak bisa dibatalkan.")) return;
+    if (!(await ask("Hapus ujian beserta semua jawaban dan hasil? Tidak bisa dibatalkan."))) return;
     const b = writeBatch(db);
     for (const c of ["submissions", "results"]) {
       (await getDocs(query(collection(db, c), where("examId", "==", code)))).forEach((d) => b.delete(d.ref));
