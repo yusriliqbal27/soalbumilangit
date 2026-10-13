@@ -20,7 +20,7 @@ Ujian online serentak. Hosting di GitHub Pages, penyimpanan jawaban di Firebase 
 ## Membuat soal baru
 
 1. Di panel guru klik **Unduh template Excel** (atau pakai [template-soal.xlsx](template-soal.xlsx)).
-2. Isi kolom: `No, Soal, A–E, Kunci, Bobot, Pembahasan` (A–E minimal 2 diisi; Bobot & Pembahasan boleh kosong).
+2. Isi kolom: `No, Soal, A–E, Kunci, Bobot, Pembahasan, Gambar` (A–E minimal 2 diisi; Bobot, Pembahasan, Gambar boleh kosong).
 3. Unggah file → tampil "N soal terbaca ✓" (atau daftar baris yang salah) → **Simpan ujian**.
 4. Bagikan **kode ujian** ke siswa. Saat semua siap, klik **Mulai ujian untuk semua**.
 
@@ -28,3 +28,14 @@ Ujian online serentak. Hosting di GitHub Pages, penyimpanan jawaban di Firebase 
 
 Kunci jawaban disimpan di koleksi `keys` yang hanya bisa dibaca guru; siswa tidak pernah menerimanya sebelum Rilis.
 Setiap siswa hanya bisa mengirim sekali (per perangkat/browser). Kunci API Firebase di `firebase-config.js` memang publik; yang melindungi data adalah aturan Firestore.
+
+## Soal bergambar
+
+Isi kolom **Gambar** pada baris soal itu dengan salah satu:
+
+1. **Nama file** gambar yang kamu taruh di folder `gambar/` repo ini, mis. `lapisan-bumi.png` (paling aman, tidak bergantung situs lain). Upload gambarnya lewat GitHub → Add file → Upload files, ke folder `gambar`.
+2. **Link `https://...`** langsung ke gambar (harus berakhiran .png/.jpg atau link gambar langsung).
+3. **Link berbagi Google Drive** (`https://drive.google.com/file/d/.../view`), dengan akses "Siapa saja yang memiliki link". Diubah otomatis menjadi link gambar.
+
+Contoh: [soal-gambar-contoh.xlsx](soal-gambar-contoh.xlsx) dan [gambar/lapisan-bumi.png](gambar/lapisan-bumi.png).
+Gambar tampil di atas pilihan jawaban, dan juga di halaman hasil saat kunci dirilis.

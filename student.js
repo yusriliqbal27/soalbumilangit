@@ -1,7 +1,7 @@
 import {
   db, auth, doc, getDoc, setDoc, onSnapshot, serverTimestamp,
-  signInAnonymously, onAuthStateChanged, $, esc, fmtTime, ask,
-} from "./shared.js?v=3";
+  signInAnonymously, onAuthStateChanged, $, esc, fmtTime, ask, safeImg,
+} from "./shared.js?v=4";
 
 const app = $("#app");
 const SESSION_KEY = "sbl_session";
@@ -77,6 +77,7 @@ function examView() {
   $("#timer").classList.remove("hidden");
   app.innerHTML = `<div class="card">${paper.map((q, i) => `
     <div class="q"><b>${i + 1}.</b> ${esc(q.text).replace(/\n/g, "<br>")}
+    ${safeImg(q.image) ? `<img class="qimg" src="${esc(safeImg(q.image))}" alt="Gambar soal ${i + 1}" loading="lazy">` : ""}
     ${q.options.map((o) => `<label class="opt ${answers[i] === o.k ? "sel" : ""}" data-i="${i}">
       <input type="radio" name="q${i}" value="${o.k}" ${answers[i] === o.k ? "checked" : ""}>
       <span><b>${o.k}.</b> ${esc(o.t)}</span></label>`).join("")}</div>`).join("")}
@@ -142,6 +143,7 @@ async function resultView(r) {
     html += `<div class="card">` + paper.map((q, i) => {
       const d = r.detail[i];
       return `<div class="q"><b>${i + 1}.</b> ${esc(q.text).replace(/\n/g, "<br>")}
+        ${safeImg(q.image) ? `<img class="qimg" src="${esc(safeImg(q.image))}" alt="">` : ""}
         ${q.options.map((o) => `<div class="opt ${o.k === d.key ? "right" : o.k === d.mine ? "wrong" : ""}"><span><b>${o.k}.</b> ${esc(o.t)}</span></div>`).join("")}
         <p class="${d.ok ? "ok" : "bad"}">${d.ok ? "Benar" : `Salah — jawabanmu: ${d.mine || "kosong"}, kunci: ${d.key}`}</p>
         ${d.expl ? `<p class="mute">${esc(d.expl)}</p>` : ""}</div>`;

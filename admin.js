@@ -1,8 +1,8 @@
 import {
   db, auth, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where,
   getDocs, writeBatch, serverTimestamp, onAuthStateChanged, signInWithPopup, GoogleAuthProvider,
-  signOut, $, esc, ask, notify,
-} from "./shared.js?v=3";
+  signOut, $, esc, ask, notify, safeImg,
+} from "./shared.js?v=4";
 
 const app = $("#app");
 let unsubs = [];
@@ -23,13 +23,13 @@ const header = (extra = "") => `<div class="row" style="align-items:center"><h1>
 const bindLogout = () => ($("#lo").onclick = () => signOut(auth));
 
 // ---------- Excel ----------
-const TEMPLATE_HEAD = ["No", "Soal", "A", "B", "C", "D", "E", "Kunci", "Bobot", "Pembahasan"];
+const TEMPLATE_HEAD = ["No", "Soal", "A", "B", "C", "D", "E", "Kunci", "Bobot", "Pembahasan", "Gambar"];
 function downloadTemplate() {
   const rows = [TEMPLATE_HEAD,
-    [1, "Lapisan bumi yang paling tebal adalah …", "Kerak", "Mantel", "Inti luar", "Inti dalam", "", "B", 1, "Mantel ±2.900 km, lapisan paling tebal."],
-    [2, "Gempa tektonik disebabkan oleh …", "Letusan gunung api", "Runtuhnya gua", "Pergerakan lempeng", "Ledakan nuklir", "Meteor", "C", 2, "Pergerakan lempeng melepas energi."]];
+    [1, "Lapisan bumi yang paling tebal adalah …", "Kerak", "Mantel", "Inti luar", "Inti dalam", "", "B", 1, "Mantel ±2.900 km, lapisan paling tebal.", ""],
+    [2, "Gempa tektonik disebabkan oleh …", "Letusan gunung api", "Runtuhnya gua", "Pergerakan lempeng", "Ledakan nuklir", "Meteor", "C", 2, "Pergerakan lempeng melepas energi.", ""]];
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws["!cols"] = [{ wch: 5 }, { wch: 60 }, ...Array(5).fill({ wch: 22 }), { wch: 8 }, { wch: 8 }, { wch: 40 }];
+  ws["!cols"] = [{ wch: 5 }, { wch: 60 }, ...Array(5).fill({ wch: 22 }), { wch: 8 }, { wch: 8 }, { wch: 40 }, { wch: 40 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Soal");
   XLSX.writeFile(wb, "template-soal.xlsx");
@@ -50,7 +50,9 @@ async function parseExcel(file) {
     if (options.length < 2) errors.push(`Baris ${line}: pilihan jawaban kurang dari 2`);
     if (!options.some((o) => o.k === key)) errors.push(`Baris ${line}: kunci "${key}" tidak cocok dengan pilihan`);
     const weight = Number(r.bobot) > 0 ? Number(r.bobot) : 1;
-    items.push({ text, options });
+    const image = safeImg(r.gambar);
+    if (image === null) errors.push(`Baris ${line}: isi kolom Gambar tidak valid (pakai link https:// atau nama file di folder gambar/)`);
+    items.push({ text, options, image: image || "" });
     keys.push({ key, weight, expl: String(r.pembahasan ?? "").trim() });
   });
   if (!items.length) errors.push("Tidak ada soal terbaca. Pastikan kolom sesuai template.");

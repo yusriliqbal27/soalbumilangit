@@ -7,7 +7,7 @@ import {
   getAuth, onAuthStateChanged, signInAnonymously, signInWithPopup,
   GoogleAuthProvider, signOut,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { firebaseConfig } from "./firebase-config.js?v=3";
+import { firebaseConfig } from "./firebase-config.js?v=4";
 
 // Sesi login guru & siswa dipisah (nama app berbeda) supaya tidak saling menimpa di browser yang sama
 const isAdmin = location.pathname.endsWith("admin.html");
@@ -47,3 +47,14 @@ export function ask(msg, { ok = "Ya, lanjut", cancel = "Batal" } = {}) {
   });
 }
 export const notify = (msg) => ask(msg, { ok: "OK", cancel: "" });
+
+// Normalisasi kolom Gambar: link https, link Google Drive, atau nama file di folder gambar/ pada repo
+export function safeImg(v) {
+  v = String(v ?? "").trim();
+  if (!v) return "";
+  const drive = v.match(/^https:\/\/drive\.google\.com\/file\/d\/([\w-]+)/);
+  if (drive) return `https://drive.google.com/uc?export=view&id=${drive[1]}`;
+  if (/^https:\/\/[^\s"'<>]+$/i.test(v)) return v;
+  if (/^[\w\-./ ]+$/.test(v) && !v.includes("..") && !v.startsWith("/")) return v.includes("/") ? v : "gambar/" + v;
+  return null; // tidak valid
+}
