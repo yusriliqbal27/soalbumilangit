@@ -7,7 +7,7 @@ import {
   getAuth, onAuthStateChanged, signInAnonymously, signInWithPopup,
   GoogleAuthProvider, signOut,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { firebaseConfig } from "./firebase-config.js";
+import { firebaseConfig } from "./firebase-config.js?v=3";
 
 // Sesi login guru & siswa dipisah (nama app berbeda) supaya tidak saling menimpa di browser yang sama
 const isAdmin = location.pathname.endsWith("admin.html");

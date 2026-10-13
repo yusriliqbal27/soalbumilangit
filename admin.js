@@ -2,7 +2,7 @@ import {
   db, auth, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where,
   getDocs, writeBatch, serverTimestamp, onAuthStateChanged, signInWithPopup, GoogleAuthProvider,
   signOut, $, esc, ask, notify,
-} from "./shared.js";
+} from "./shared.js?v=3";
 
 const app = $("#app");
 let unsubs = [];

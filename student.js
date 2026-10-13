@@ -1,7 +1,7 @@
 import {
   db, auth, doc, getDoc, setDoc, onSnapshot, serverTimestamp,
   signInAnonymously, onAuthStateChanged, $, esc, fmtTime, ask,
-} from "./shared.js";
+} from "./shared.js?v=3";
 
 const app = $("#app");
 const SESSION_KEY = "sbl_session";
