@@ -22,6 +22,33 @@ const header = (extra = "") => `<div class="row" style="align-items:center"><h1>
   <div style="text-align:right">${extra}<button class="sec" id="lo">Keluar</button></div></div>`;
 const bindLogout = () => ($("#lo").onclick = () => signOut(auth));
 
+// ---------- Pratinjau soal (tampilan seperti siswa + kunci) ----------
+function previewHtml(items, keys) {
+  const warn = [];
+  const body = items.map((q, i) => {
+    const k = keys[i] || {};
+    const img = safeImg(q.image);
+    if (!img && /gambar|diagram|peta|grafik|tabel/i.test(q.text)) warn.push(`Soal ${i + 1} menyebut gambar/peta/tabel tapi kolom Gambar kosong`);
+    return `<div class="q"><b>${i + 1}.</b> ${esc(q.text).replace(/\n/g, "<br>")}
+      ${img ? `<img class="qimg" data-n="${i + 1}" src="${esc(img)}" alt="">` : ""}
+      ${q.options.map((o) => `<div class="opt ${o.k === k.key ? "right" : ""}"><span><b>${o.k}.</b> ${esc(o.t)}${o.k === k.key ? " ✔ kunci" : ""}</span></div>`).join("")}
+      <p class="mute">Bobot ${k.weight ?? 1}${k.expl ? ` · Pembahasan: ${esc(k.expl)}` : " · (tanpa pembahasan)"}</p></div>`;
+  }).join("");
+  const total = keys.reduce((s, k) => s + (k.weight || 1), 0);
+  return `<h2>Pratinjau (${items.length} soal, total bobot ${total})</h2>
+    <p class="mute">Begini tampilan soal untuk siswa. Hijau = kunci jawaban (siswa tidak melihat ini saat ujian).</p>
+    <div class="warns bad">${warn.map(esc).join("<br>")}</div>${body}`;
+}
+function bindImgErr(root) {
+  const w = root.querySelector(".warns");
+  root.querySelectorAll("img.qimg").forEach((im) => {
+    im.onerror = () => {
+      im.style.display = "none";
+      w.insertAdjacentHTML("beforeend", `${w.innerHTML ? "<br>" : ""}Soal ${im.dataset.n}: gambar tidak bisa dimuat (${esc(im.getAttribute("src"))}). Cek nama file / link, dan pastikan sudah diupload ke GitHub.`);
+    };
+  });
+}
+
 // ---------- Excel ----------
 const TEMPLATE_HEAD = ["No", "Soal", "A", "B", "C", "D", "E", "Kunci", "Bobot", "Pembahasan", "Gambar"];
 function downloadTemplate() {
@@ -70,6 +97,7 @@ function listView() {
     <div><label>Durasi (menit)</label><input id="dur" type="number" value="60" min="1"></div></div>
     <label>File soal (.xlsx)</label><input id="file" type="file" accept=".xlsx,.xls,.csv">
     <div id="prev" class="mute"></div><button id="mk" disabled>Simpan ujian</button></div>
+  <div class="card hidden" id="pv"></div>
   <div class="card"><h2>Ujian saya</h2><div id="list" class="mute">Memuat…</div></div>`;
   bindLogout();
   $("#tpl").onclick = downloadTemplate;
@@ -82,6 +110,9 @@ function listView() {
       ? `<span class="bad">${parsed.errors.map(esc).join("<br>")}</span>`
       : `<span class="ok">${parsed.items.length} soal terbaca ✓</span>`;
     $("#mk").disabled = parsed.errors.length > 0;
+    const pv = $("#pv");
+    pv.classList.toggle("hidden", !parsed.items.length);
+    if (parsed.items.length) { pv.innerHTML = previewHtml(parsed.items, parsed.keys); bindImgErr(pv); }
   };
   $("#mk").onclick = async () => {
     const title = $("#title").value.trim();
@@ -106,7 +137,7 @@ function listView() {
 // ---------- kelola satu ujian ----------
 function examView(code) {
   clearSubs();
-  let exam, subs = [];
+  let exam, subs = [], pvHtml = "";
   const render = () => {
     if (!exam) return;
     const st = { draft: "Belum dimulai", open: Date.now() < exam.endsAt ? "Berlangsung" : "Waktu habis", closed: "Ditutup" }[exam.status];
@@ -117,7 +148,9 @@ function examView(code) {
       <p>Status: <b>${st}</b> · ${exam.count} soal · ${exam.durationMin} menit · terkumpul: <b>${subs.length}</b></p>
       <button id="st" ${exam.status !== "draft" ? "disabled" : ""}>▶ Mulai ujian untuk semua</button>
       <button id="en" class="sec" ${exam.status !== "open" ? "disabled" : ""}>Akhiri sekarang (paksa kumpul)</button>
-      <button id="cl" class="sec" ${exam.status === "closed" ? "disabled" : ""}>Tutup pengumpulan</button></div>
+      <button id="cl" class="sec" ${exam.status === "closed" ? "disabled" : ""}>Tutup pengumpulan</button>
+      <button id="pvb" class="sec">Lihat soal &amp; kunci</button></div>
+    <div class="card ${pvHtml ? "" : "hidden"}" id="pv">${pvHtml}</div>
     <div class="card"><h2>Tampilkan hasil ke siswa</h2>
       <label><input type="checkbox" id="oScore" ${opt.score ? "checked" : ""}> Siswa boleh lihat nilai</label>
       <label><input type="checkbox" id="oKey" ${opt.key ? "checked" : ""}> Siswa boleh lihat kunci &amp; pembahasan</label>
@@ -135,6 +168,13 @@ function examView(code) {
     $("#cl").onclick = async () => (await ask("Setelah ditutup siswa tidak bisa mengirim lagi. Lanjut?")) && updateDoc(doc(db, "exams", code), { status: "closed" });
     $("#oScore").onchange = (e) => (opt.score = e.target.checked);
     $("#oKey").onchange = (e) => (opt.key = e.target.checked);
+    $("#pvb").onclick = async () => {
+      const [p, k] = await Promise.all([getDoc(doc(db, "exams", code, "paper", "questions")), getDoc(doc(db, "keys", code))]);
+      pvHtml = previewHtml(p.data().items, k.data().items);
+      const pv = $("#pv"); pv.innerHTML = pvHtml; pv.classList.remove("hidden"); bindImgErr(pv);
+      pv.scrollIntoView({ behavior: "smooth" });
+    };
+    if (pvHtml) bindImgErr($("#pv"));
     $("#rel").onclick = release;
     $("#xl").onclick = exportXlsx;
     $("#del").onclick = remove;
