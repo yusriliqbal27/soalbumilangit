@@ -1,64 +1,30 @@
-# soalbumilangit
+# Soal Bumi Langit
 
-Soal online gratis: halaman soal di **GitHub Pages**, jawaban siswa tertampung di **Google Sheets** (seperti Google Form), guru mengatur kapan nilai dan kunci jawaban boleh dilihat.
+Ujian online serentak. Hosting di GitHub Pages, penyimpanan jawaban di Firebase (gratis).
 
-```
-Siswa  →  index.html (GitHub Pages)  →  Apps Script  →  Google Sheet (Soal, Pengaturan, Jawaban)
-Guru   →  admin.html (PIN)           →  Apps Script  →  buka/tutup, tampil nilai, tampil kunci, unduh CSV
-```
+- Siswa: `index.html` — masuk dengan kode ujian + nama, tunggu guru menekan **Mulai**, semua mengerjakan bersamaan.
+- Guru: `admin.html` — buat ujian dari Excel, mulai/akhiri, lalu pilih siswa boleh lihat nilai / kunci atau tidak.
+- Jawaban tidak ditampilkan ke siapa pun sampai guru menekan **Rilis**.
 
-Kunci jawaban tidak pernah dikirim ke browser siswa selama "tampilkan_kunci" bernilai TIDAK. Penilaian dilakukan di server.
+## Setup (sekali saja, ±10 menit)
 
-## Pasang (sekali saja, ±10 menit)
-
-### 1. Siapkan Google Sheet
-1. Buka [drive.google.com](https://drive.google.com), klik **New > File upload**, pilih `TEMPLATE_SOAL.xlsx`.
-2. Klik dua kali file itu, pilih **Open with Google Sheets**, lalu **File > Save as Google Sheets**.
-3. Buka tab **Pengaturan**, ganti `pin_admin`, isi `judul` dan `petunjuk`.
-
-### 2. Pasang backend
-1. Di Google Sheet: **Extensions > Apps Script**.
-2. Hapus isi default, tempel seluruh isi `Code.gs`, klik **Save**.
-3. Klik **Deploy > New deployment**, ikon roda gigi pilih **Web app**.
-   - Execute as: **Me**
-   - Who has access: **Anyone**
-4. Klik **Deploy**, setujui izin (klik *Advanced > Go to … (unsafe)* jika muncul peringatan, itu skrip kamu sendiri).
-5. Salin **Web app URL** (berakhiran `/exec`).
-
-### 3. Pasang halaman web
-1. Buka `config.js`, ganti `PASTE_URL_WEB_APP_DI_SINI` dengan URL tadi.
-2. Di repo GitHub: **Add file > Upload files**, unggah `index.html`, `admin.html`, `config.js` (jangan unggah `Code.gs` dan xlsx kalau tidak mau, tidak masalah juga), lalu **Commit**.
-3. **Settings > Pages > Source: Deploy from a branch > main / (root) > Save**.
-4. Tunggu 1-2 menit. Alamatnya:
-   - Siswa: `https://yusriliqbal27.github.io/soalbumilangit/`
-   - Guru: `https://yusriliqbal27.github.io/soalbumilangit/admin.html`
+1. https://console.firebase.google.com → **Add project** (Analytics boleh dimatikan).
+2. **Build → Firestore Database → Create database** (mode production, lokasi `asia-southeast2` atau terdekat).
+3. **Build → Authentication → Get started**, aktifkan **Anonymous** dan **Google**.
+   Tab **Settings → Authorized domains** → tambah `yusriliqbal27.github.io`.
+4. **Project settings → Your apps → Web (`</>`)** → salin `firebaseConfig` ke [firebase-config.js](firebase-config.js).
+5. Buka [firestore.rules](firestore.rules), ganti `GANTI_EMAIL_GURU@gmail.com` dengan email Google guru, lalu tempel seluruhnya di **Firestore → Rules → Publish**.
+6. GitHub repo → **Settings → Pages** → Source: `main` / root. Tunggu 1–2 menit.
+7. Guru buka `https://yusriliqbal27.github.io/soalbumilangit/admin.html`, login Google.
 
 ## Membuat soal baru
-Satu baris di tab **Soal** = satu soal.
 
-| Kolom | Isi |
-|---|---|
-| Soal | Teks soal |
-| A–E | Pilihan jawaban (boleh hanya A–C atau A–D) |
-| Kunci | Satu huruf, misal `B` |
-| Bobot | Angka (kosong = 1) |
-| Gambar | Link `https://…` (opsional) |
-| Pembahasan | Tampil saat kunci dibuka (opsional) |
+1. Di panel guru klik **Unduh template Excel** (atau pakai [template-soal.xlsx](template-soal.xlsx)).
+2. Isi kolom: `No, Soal, A–E, Kunci, Bobot, Pembahasan` (A–E minimal 2 diisi; Bobot & Pembahasan boleh kosong).
+3. Unggah file → tampil "N soal terbaca ✓" (atau daftar baris yang salah) → **Simpan ujian**.
+4. Bagikan **kode ujian** ke siswa. Saat semua siap, klik **Mulai ujian untuk semua**.
 
-- **Soal esai**: kosongkan A–E dan Kunci. Jawaban tersimpan, tidak dinilai otomatis.
-- **Dari Excel**: isi di Excel dengan kolom yang sama, lalu salin-tempel barisnya ke tab Soal. Atau unggah ulang file xlsx sebagai Sheet baru dan pasang ulang langkah 2.
-- Soal langsung berubah di web tanpa upload ulang ke GitHub.
+## Catatan keamanan
 
-## Alur satu ujian
-1. Isi soal, pastikan `status = BUKA` di admin.
-2. Bagikan link siswa. Semua mengerjakan, jawaban masuk ke tab **Jawaban**.
-3. Selesai: **Tutup** ujian di admin.
-4. Kalau mau, tekan **Tampil** untuk nilai, lalu **Tampil** untuk kunci. Siswa cek lewat tab *Cek Hasil* dengan NIS-nya.
-5. Unduh CSV. Untuk ujian baru, hapus baris 2 ke bawah di tab Jawaban dan ganti isi tab Soal.
-
-Salah kunci? Perbaiki di Sheet, lalu klik **Hitung ulang nilai** di admin.
-
-## Catatan
-- Satu NIS hanya bisa mengumpulkan sekali (mencegah dobel kirim).
-- Kalau kamu mengubah kode `Code.gs`, deploy ulang lewat **Deploy > Manage deployments > Edit > New version**, URL tetap sama.
-- Siswa bisa cek hasil dengan NIS saja, jadi pakai NIS yang tidak mudah ditebak jika nilai bersifat rahasia.
+Kunci jawaban disimpan di koleksi `keys` yang hanya bisa dibaca guru; siswa tidak pernah menerimanya sebelum Rilis.
+Setiap siswa hanya bisa mengirim sekali (per perangkat/browser). Kunci API Firebase di `firebase-config.js` memang publik; yang melindungi data adalah aturan Firestore.
