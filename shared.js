@@ -9,7 +9,9 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { firebaseConfig } from "./firebase-config.js";
 
-export const app = initializeApp(firebaseConfig);
+// Sesi login guru & siswa dipisah (nama app berbeda) supaya tidak saling menimpa di browser yang sama
+const isAdmin = location.pathname.endsWith("admin.html");
+export const app = initializeApp(firebaseConfig, isAdmin ? "guru" : "siswa");
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 export {
