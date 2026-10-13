@@ -39,6 +39,33 @@ function previewHtml(items, keys) {
     <p class="mute">Begini tampilan soal untuk siswa. Hijau = kunci jawaban (siswa tidak melihat ini saat ujian).</p>
     <div class="warns bad">${warn.map(esc).join("<br>")}</div>${body}`;
 }
+// ---------- Cetak / simpan PDF (lewat dialog cetak browser) ----------
+async function printExam(title, items, keys, withKey) {
+  const old = document.getElementById("printArea");
+  if (old) old.remove();
+  const area = document.createElement("div");
+  area.id = "printArea";
+  const tgl = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+  area.innerHTML = `<h1>${esc(title)}${withKey ? " — Kunci &amp; Pembahasan" : ""}</h1>
+    <p class="pn">${items.length} soal · dicetak ${tgl}</p>` + items.map((q, i) => {
+    const k = keys[i] || {};
+    const img = safeImg(q.image);
+    return `<div class="pq"><div><b>${i + 1}.</b> ${esc(q.text).replace(/\n/g, "<br>")}</div>
+      ${img ? `<img src="${esc(img)}" alt="">` : ""}
+      ${q.options.map((o) => `<div class="po ${withKey && o.k === k.key ? "k" : ""}">${o.k}. ${esc(o.t)}${withKey && o.k === k.key ? " ✔" : ""}</div>`).join("")}
+      ${withKey ? `<div class="pn">Kunci: <b>${esc(k.key)}</b> · Bobot ${k.weight ?? 1}${k.expl ? `<br>Pembahasan: ${esc(k.expl)}` : ""}</div>` : ""}</div>`;
+  }).join("");
+  document.body.appendChild(area);
+  // tunggu gambar selesai dimuat (maks 4 detik) supaya tidak kosong di PDF
+  await Promise.race([
+    Promise.all([...area.querySelectorAll("img")].map((im) => (im.complete ? 0 : new Promise((r) => { im.onload = im.onerror = r; })))),
+    new Promise((r) => setTimeout(r, 4000)),
+  ]);
+  const oldTitle = document.title;
+  document.title = `${title}${withKey ? " - kunci" : " - soal"}`;
+  window.addEventListener("afterprint", () => { area.remove(); document.title = oldTitle; }, { once: true });
+  window.print();
+}
 function bindImgErr(root) {
   const w = root.querySelector(".warns");
   root.querySelectorAll("img.qimg").forEach((im) => {
@@ -112,7 +139,13 @@ function listView() {
     $("#mk").disabled = parsed.errors.length > 0;
     const pv = $("#pv");
     pv.classList.toggle("hidden", !parsed.items.length);
-    if (parsed.items.length) { pv.innerHTML = previewHtml(parsed.items, parsed.keys); bindImgErr(pv); }
+    if (parsed.items.length) {
+      pv.innerHTML = previewHtml(parsed.items, parsed.keys) + `<p><button class="sec" id="pdA">⬇ PDF soal</button><button class="sec" id="pdB">⬇ PDF soal + kunci</button></p>`;
+      bindImgErr(pv);
+      const ttl = () => $("#title").value.trim() || "Soal";
+      $("#pdA").onclick = () => printExam(ttl(), parsed.items, parsed.keys, false);
+      $("#pdB").onclick = () => printExam(ttl(), parsed.items, parsed.keys, true);
+    }
   };
   $("#mk").onclick = async () => {
     const title = $("#title").value.trim();
@@ -149,7 +182,8 @@ function examView(code) {
       <button id="st" ${exam.status !== "draft" ? "disabled" : ""}>▶ Mulai ujian untuk semua</button>
       <button id="en" class="sec" ${exam.status !== "open" ? "disabled" : ""}>Akhiri sekarang (paksa kumpul)</button>
       <button id="cl" class="sec" ${exam.status === "closed" ? "disabled" : ""}>Tutup pengumpulan</button>
-      <button id="pvb" class="sec">Lihat soal &amp; kunci</button></div>
+      <button id="pvb" class="sec">Lihat soal &amp; kunci</button>
+      <button id="pd1" class="sec">⬇ PDF soal</button><button id="pd2" class="sec">⬇ PDF soal + kunci</button></div>
     <div class="card ${pvHtml ? "" : "hidden"}" id="pv">${pvHtml}</div>
     <div class="card"><h2>Tampilkan hasil ke siswa</h2>
       <label><input type="checkbox" id="oScore" ${opt.score ? "checked" : ""}> Siswa boleh lihat nilai</label>
@@ -174,6 +208,12 @@ function examView(code) {
       const pv = $("#pv"); pv.innerHTML = pvHtml; pv.classList.remove("hidden"); bindImgErr(pv);
       pv.scrollIntoView({ behavior: "smooth" });
     };
+    const dl = async (withKey) => {
+      const [p, k] = await Promise.all([getDoc(doc(db, "exams", code, "paper", "questions")), getDoc(doc(db, "keys", code))]);
+      printExam(exam.title, p.data().items, k.data().items, withKey);
+    };
+    $("#pd1").onclick = () => dl(false);
+    $("#pd2").onclick = () => dl(true);
     if (pvHtml) bindImgErr($("#pv"));
     $("#rel").onclick = release;
     $("#xl").onclick = exportXlsx;
