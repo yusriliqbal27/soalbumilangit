@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    // GANTI dengan email Google milik guru:
+    function isTeacher() {
+      return signedIn()
+        && request.auth.token.email == 'GANTI_EMAIL_GURU@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    match /exams/{id} {
+      allow get: if signedIn();
+      allow list, write: if isTeacher();
+      // soal baru bisa dibaca siswa setelah ujian dimulai
+      match /paper/{d} {
+        allow get: if isTeacher() ||
+          (signedIn() && get(/databases/$(database)/documents/exams/$(id)).data.status in ['open', 'closed']);
+        allow write: if isTeacher();
+      }
+    }
+
+    // kunci jawaban: hanya guru
+    match /keys/{id} { allow read, write: if isTeacher(); }
+
+    // siswa hanya boleh kirim SEKALI, dan hanya saat ujian open
+    match /submissions/{sid} {
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && sid == request.resource.data.examId + '_' + request.auth.uid
+        && get(/databases/$(database)/documents/exams/$(request.resource.data.examId)).data.status == 'open';
+      allow get: if signedIn() && (resource == null || resource.data.uid == request.auth.uid);
+      allow read, update, delete: if isTeacher();
+    }
+
+    // hasil: ditulis guru saat "Rilis", siswa hanya baca miliknya
+    match /results/{sid} {
+      allow get: if signedIn() && (resource == null || resource.data.uid == request.auth.uid);
+      allow read, write: if isTeacher();
+    }
+  }
+}
